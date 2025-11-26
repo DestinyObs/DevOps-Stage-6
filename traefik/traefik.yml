@@ -1,0 +1,61 @@
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: your-email@example.com
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+
+http:
+  middlewares:
+    https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+  routers:
+    frontend:
+      rule: "PathPrefix(`/`)",
+      entryPoints:
+        - web
+        - websecure
+      service: frontend
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - https-redirect
+    auth-api:
+      rule: "PathPrefix(`/api/auth`)"
+      entryPoints:
+        - web
+        - websecure
+      service: auth-api
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - https-redirect
+    todos-api:
+      rule: "PathPrefix(`/api/todos`)"
+      entryPoints:
+        - web
+        - websecure
+      service: todos-api
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - https-redirect
+    users-api:
+      rule: "PathPrefix(`/api/users`)"
+      entryPoints:
+        - web
+        - websecure
+      service: users-api
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - https-redirect
