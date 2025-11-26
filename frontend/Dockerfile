@@ -6,9 +6,10 @@ RUN npm install --production=false
 COPY . .
 RUN npm run build
 
-# Stage 2: Serve
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/nginx.conf
+# Stage 2: Serve with http-server
+FROM node:18-alpine
+WORKDIR /app
+RUN npm install -g http-server
+COPY --from=build /app/dist ./dist
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["http-server", "./dist", "-p", "80"]
