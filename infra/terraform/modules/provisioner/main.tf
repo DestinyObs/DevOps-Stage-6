@@ -79,12 +79,9 @@ resource "null_resource" "run_ansible" {
   # ----------------------------------------------------------------------------
   # Idempotency Triggers
   # ----------------------------------------------------------------------------
-  # Terraform will only re-run Ansible when these values change:
-  # - instance_id: New instance created
-  # - inventory: Inventory configuration changed
-  # If neither changes, Ansible won't run (making it idempotent)
+  # ONLY trigger on new instance creation, not inventory file changes
+  # This prevents re-running Ansible when only the inventory file is recreated
   triggers = {
-    instance_id = var.instance_id                # Trigger on new instance
-    inventory   = local_file.ansible_inventory.content  # Trigger on inventory change
+    instance_id = var.instance_id  # Only re-run when instance changes
   }
 }
