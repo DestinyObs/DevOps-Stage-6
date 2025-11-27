@@ -11,6 +11,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`destinyobs.mooo.com`)"
       - "traefik.http.routers.frontend.entrypoints=web,websecure"
+      - "traefik.http.routers.frontend.priority=1"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
@@ -26,6 +27,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.auth-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/auth`)"
       - "traefik.http.routers.auth-api.entrypoints=web,websecure"
+      - "traefik.http.routers.auth-api.priority=10"
       - "traefik.http.routers.auth-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.auth-api.loadbalancer.server.port=8080"
 
@@ -43,6 +45,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.todos-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/todos`)"
       - "traefik.http.routers.todos-api.entrypoints=web,websecure"
+      - "traefik.http.routers.todos-api.priority=10"
       - "traefik.http.routers.todos-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.todos-api.loadbalancer.server.port=8082"
 
@@ -57,6 +60,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.users-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/users`)"
       - "traefik.http.routers.users-api.entrypoints=web,websecure"
+      - "traefik.http.routers.users-api.priority=10"
       - "traefik.http.routers.users-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.users-api.loadbalancer.server.port=8080"
 
