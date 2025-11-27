@@ -1,7 +1,7 @@
-FROM node:18-alpine
+FROM node:16-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm install --production
+RUN npm install --production --legacy-peer-deps
 COPY . .
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["npm", "start"]
