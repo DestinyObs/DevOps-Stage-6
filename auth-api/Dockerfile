@@ -6,7 +6,7 @@ COPY main.go .
 COPY tracing.go .
 COPY user.go .
 RUN go mod tidy
-RUN go build -o auth-api main.go
+RUN go build -o auth-api .
 
 # Run stage
 FROM alpine:latest
