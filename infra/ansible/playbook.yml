@@ -1,0 +1,13 @@
+---
+# Ansible Playbook for DevOps Stage 6 Deployment
+
+- name: Deploy DevOps Stage 6 TODO Application
+  hosts: app_server
+  gather_facts: yes
+  
+  roles:
+    - role: dependencies
+      tags: ['dependencies', 'setup']
+    
+    - role: deploy
+      tags: ['deploy', 'app']

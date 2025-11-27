@@ -1,0 +1,29 @@
+# Terraform Variables Values
+# Copy this file to terraform.tfvars and fill in your values
+
+# Project Configuration
+project_name = "devops-stage6"
+environment  = "production"
+owner_email  = "destinyobueh14@gmail.com" # Change to your email for drift notifications
+
+# AWS Configuration
+aws_region        = "us-east-1"
+availability_zone = "us-east-1a"
+
+# Networking Configuration
+vpc_cidr           = "10.0.0.0/16"
+public_subnet_cidr = "10.0.1.0/24"
+ssh_allowed_ips    = ["0.0.0.0/0"] # TODO: Restrict to your IP for security
+
+# Compute Configuration
+instance_type     = "t2.medium" # 4GB RAM, 2 vCPUs (needed for Java service)
+root_volume_size  = 30
+
+# SSH Configuration (you need to fill these)
+ssh_public_key       = "YOUR_SSH_PUBLIC_KEY_CONTENT_HERE"
+ssh_private_key_path = "~/.ssh/id_rsa" # Path to your SSH private key
+ssh_user             = "ubuntu"
+deploy_user          = "deploy"
+
+# Application Configuration
+domain_name = "destinyobs.mooo.com"
