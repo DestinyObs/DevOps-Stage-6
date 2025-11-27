@@ -9,7 +9,7 @@ services:
       - appnet
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.rule=Host(`destinyobs.mooo.com`)"
       - "traefik.http.routers.frontend.entrypoints=web,websecure"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
@@ -24,7 +24,7 @@ services:
       - JWT_SECRET=myfancysecret
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.auth-api.rule=PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.auth-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/auth`)"
       - "traefik.http.routers.auth-api.entrypoints=web,websecure"
       - "traefik.http.routers.auth-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.auth-api.loadbalancer.server.port=8080"
@@ -41,7 +41,7 @@ services:
       - JWT_SECRET=myfancysecret
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.todos-api.rule=PathPrefix(`/api/todos`)"
+      - "traefik.http.routers.todos-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/todos`)"
       - "traefik.http.routers.todos-api.entrypoints=web,websecure"
       - "traefik.http.routers.todos-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.todos-api.loadbalancer.server.port=8082"
@@ -55,7 +55,7 @@ services:
       - SERVER_PORT=8080
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.users-api.rule=PathPrefix(`/api/users`)"
+      - "traefik.http.routers.users-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/users`)"
       - "traefik.http.routers.users-api.entrypoints=web,websecure"
       - "traefik.http.routers.users-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.users-api.loadbalancer.server.port=8080"
@@ -82,8 +82,6 @@ services:
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      - --entrypoints.web.http.redirections.entryPoint.to=websecure
-      - --entrypoints.web.http.redirections.entryPoint.scheme=https
       - --certificatesresolvers.letsencrypt.acme.email=destinyobueh14@gmail.com
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
