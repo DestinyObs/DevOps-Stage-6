@@ -20,7 +20,7 @@ http:
         permanent: true
   routers:
     frontend:
-      rule: "PathPrefix(`/`)",
+      rule: "PathPrefix(`/`)"
       entryPoints:
         - web
         - websecure
