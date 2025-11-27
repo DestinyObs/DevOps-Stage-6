@@ -70,7 +70,7 @@ jobs:
           fi
 
       - name: Upload plan output
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
           path: infra/terraform/plan_output.txt
