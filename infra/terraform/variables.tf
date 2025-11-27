@@ -88,6 +88,7 @@ variable "deploy_user" {
 
 # Application Configuration
 variable "domain_name" {
-  description = "Domain name for the application"
+  description = "Domain name for the application (can be set after getting EC2 IP)"
   type        = string
+  default     = "localhost"  # Default to localhost, update after getting IP
 }
