@@ -12,7 +12,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 @RestController()
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 public class UsersController {
 
     @Autowired
