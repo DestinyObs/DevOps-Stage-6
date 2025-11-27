@@ -63,11 +63,11 @@ func main() {
 	e.Use(middleware.CORS())
 
 	// Route => handler
-	e.GET("/api/auth/version", func(c echo.Context) error {
+	e.GET("/version", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Auth API, written in Go\n")
 	})
 
-	e.POST("/api/auth/login", getLoginHandler(userService))
+	e.POST("/login", getLoginHandler(userService))
 
 	// Start server
 	e.Logger.Fatal(e.Start(hostport))
