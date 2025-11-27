@@ -1,4 +1,4 @@
-FROM eclipse-temurin:11-jre-alpine
+FROM eclipse-temurin:8-jre-alpine
 WORKDIR /app
 COPY target/*.jar app.jar
 EXPOSE 8080
