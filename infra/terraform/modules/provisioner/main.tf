@@ -1,44 +1,31 @@
 # ============================================================================
 # Provisioner Module - Ansible Trigger and Inventory Generation
 # ============================================================================
-# This module handles the bridge between Terraform and Ansible:
-# - Generates dynamic Ansible inventory from Terraform outputs
-# - Waits for SSH connectivity before proceeding
-# - Automatically triggers Ansible playbook execution
-# - Ensures idempotent deployment (only runs when needed)
-# ============================================================================
 
 # ----------------------------------------------------------------------------
 # Generate Dynamic Ansible Inventory File
 # ----------------------------------------------------------------------------
-# Creates a YAML inventory file for Ansible using Terraform outputs
-# This eliminates manual inventory management and ensures accuracy
 resource "local_file" "ansible_inventory" {
-  # Use template file to generate inventory with variables
   content = templatefile("${path.root}/templates/inventory.tpl", {
-    server_ip       = var.instance_public_ip      # EC2 public IP
-    ssh_user        = var.ssh_user                # Initial SSH user (ubuntu)
-    ssh_private_key = var.ssh_private_key_path    # Path to SSH private key
-    deploy_user     = var.deploy_user             # Application deployment user
-    domain_name     = var.domain_name             # Application domain
+    server_ip       = var.instance_public_ip
+    ssh_user        = var.ssh_user
+    ssh_private_key = var.ssh_private_key_path
+    deploy_user     = var.deploy_user
+    domain_name     = var.domain_name
   })
 
-  # Write inventory to ansible directory
   filename        = "${path.root}/../ansible/inventory/hosts.yml"
-  file_permission = "0644"                        # Read/write for owner, read for others
+  file_permission = "0644"
 }
 
 # ----------------------------------------------------------------------------
 # Wait for SSH Connectivity
 # ----------------------------------------------------------------------------
-# Polls the instance until SSH is ready and accepting connections
-# Prevents Ansible from failing due to premature execution
 resource "null_resource" "wait_for_ssh" {
   depends_on = [local_file.ansible_inventory]
 
   provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOT
+    command = <<-EOT
       echo "Waiting for SSH to be ready..."
       max_attempts=30
       attempt=0
@@ -56,7 +43,6 @@ resource "null_resource" "wait_for_ssh" {
     EOT
   }
 
-  # Trigger when instance ID changes (new instance created)
   triggers = {
     instance_id = var.instance_id
   }
@@ -65,23 +51,15 @@ resource "null_resource" "wait_for_ssh" {
 # ----------------------------------------------------------------------------
 # Run Ansible Playbook
 # ----------------------------------------------------------------------------
-# Executes the Ansible playbook to configure and deploy the application
-# Only runs when instance changes or inventory is updated (idempotent)
 resource "null_resource" "run_ansible" {
   depends_on = [null_resource.wait_for_ssh]
 
   provisioner "local-exec" {
-    # Run ansible-playbook with generated inventory
     command     = "ansible-playbook -i ${path.root}/../ansible/inventory/hosts.yml ${path.root}/../ansible/playbook.yml"
     working_dir = path.root
   }
 
-  # ----------------------------------------------------------------------------
-  # Idempotency Triggers
-  # ----------------------------------------------------------------------------
-  # ONLY trigger on new instance creation, not inventory file changes
-  # This prevents re-running Ansible when only the inventory file is recreated
   triggers = {
-    instance_id = var.instance_id  # Only re-run when instance changes
+    instance_id = var.instance_id
   }
 }
