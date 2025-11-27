@@ -37,34 +37,22 @@ resource "null_resource" "wait_for_ssh" {
   depends_on = [local_file.ansible_inventory]
 
   provisioner "local-exec" {
-    command = <<-EOT
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
       echo "Waiting for SSH to be ready..."
-      
-      # Configuration
-      max_attempts=30                            # Max retry attempts
-      attempt=0                                  # Current attempt counter
-      
-      # Retry loop
+      max_attempts=30
+      attempt=0
       while [ $attempt -lt $max_attempts ]; do
-        # Try SSH connection with timeout
-        if ssh -i ${var.ssh_private_key_path} \
-               -o StrictHostKeyChecking=no \
-               -o ConnectTimeout=5 \
-               ${var.ssh_user}@${var.instance_public_ip} \
-               "echo 'SSH is ready'" 2>/dev/null; then
+        if ssh -i ${var.ssh_private_key_path} -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${var.ssh_user}@${var.instance_public_ip} "echo 'SSH is ready'" 2>/dev/null; then
           echo "SSH connection successful!"
-          exit 0                                 # Success - exit loop
+          exit 0
         fi
-        
-        # Increment counter and retry
         attempt=$((attempt + 1))
         echo "Attempt $attempt/$max_attempts failed. Retrying in 10 seconds..."
         sleep 10
       done
-      
-      # Failed after all attempts
       echo "Failed to connect via SSH after $max_attempts attempts"
-      exit 1                                     # Fail terraform apply
+      exit 1
     EOT
   }
 

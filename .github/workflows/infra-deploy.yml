@@ -69,10 +69,10 @@ jobs:
           EXIT_CODE=${{ steps.plan.outputs.exit_code }}
           if [ "$EXIT_CODE" == "2" ]; then
             echo "has_drift=true" >> $GITHUB_OUTPUT
-            echo "⚠️ DRIFT DETECTED - Changes required to infrastructure"
+            echo "⚠️ Changes detected - Infrastructure will be updated"
           elif [ "$EXIT_CODE" == "0" ]; then
             echo "has_drift=false" >> $GITHUB_OUTPUT
-            echo "✅ No drift detected - Infrastructure matches desired state"
+            echo "✅ No changes needed - Infrastructure matches desired state"
           else
             echo "❌ Terraform plan failed"
             exit 1
@@ -84,7 +84,7 @@ jobs:
           name: terraform-plan
           path: infra/terraform/plan_output.txt
 
-      - name: Send Drift Detection Email
+      - name: Send Infrastructure Changes Email
         if: steps.drift_check.outputs.has_drift == 'true'
         uses: dawidd6/action-send-mail@v3
         with:
@@ -92,24 +92,25 @@ jobs:
           server_port: 587
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "⚠️ Terraform Drift Detected - Action Required"
+          subject: "⚠️ Infrastructure Changes Detected - Review Required"
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: DevOps Stage 6 CI/CD
           body: |
-            Drift has been detected in your Terraform infrastructure!
+            Infrastructure changes have been detected and require your review!
             
             Repository: ${{ github.repository }}
             Branch: ${{ github.ref_name }}
             Commit: ${{ github.sha }}
             Triggered by: ${{ github.actor }}
             
-            Changes detected in:
-            ${{ steps.plan.outputs.plan_output }}
+            Action: Terraform detected changes to infrastructure
+            Status: Waiting for manual approval in production environment
             
-            Please review the changes and approve the deployment:
+            View the full plan and approve the deployment:
             ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             
-            This deployment is paused and waiting for manual approval.
+            Note: For first deployment, this creates new infrastructure.
+            For subsequent runs, this indicates drift from desired state.
 
   # ----------------------------------------------------------------------------
   # Job: Wait for Manual Approval (if drift detected)
@@ -124,13 +125,15 @@ jobs:
     if: needs.terraform-plan.outputs.has_drift == 'true'
     
     # Environment protection rule - requires manual approval
-    # You must create this environment in GitHub Settings → Environments → production
-    # Add protection rules with required reviewers
+    # Create this environment: Settings → Environments → New environment → "production"
+    # Add protection rule: Required reviewers → Add yourself
     environment: production
     
     steps:
       - name: Manual approval checkpoint
-        run: echo "Approved by reviewer to proceed with terraform apply"
+        run: |
+          echo "✅ Deployment approved by reviewer"
+          echo "Proceeding with terraform apply..."
 
   terraform-apply:
     name: Terraform Apply
