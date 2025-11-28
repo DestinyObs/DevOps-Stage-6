@@ -22,7 +22,15 @@
     version: main
     force: no
   become: yes
-  become_user: "{{ deploy_user }}"
+  when: not repo_exists.stat.exists
+
+- name: Set ownership of cloned repository
+  file:
+    path: "{{ app_directory }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    recurse: yes
+  become: yes
   when: not repo_exists.stat.exists
 
 - name: Pull latest changes from repository
@@ -32,9 +40,17 @@
     version: main
     force: no
   become: yes
-  become_user: "{{ deploy_user }}"
   register: git_pull
   when: repo_exists.stat.exists
+
+- name: Set ownership after pull
+  file:
+    path: "{{ app_directory }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    recurse: yes
+  become: yes
+  when: repo_exists.stat.exists and git_pull.changed
 
 - name: Create Traefik certificates directory in app
   file:
@@ -64,7 +80,17 @@
   args:
     chdir: "{{ app_directory }}/users-api"
   become: yes
-  become_user: "{{ deploy_user }}"
+  environment:
+    HOME: "/home/{{ deploy_user }}"
+  when: not users_api_jar.stat.exists or git_pull.changed
+
+- name: Set ownership of built JAR
+  file:
+    path: "{{ app_directory }}/users-api/target"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    recurse: yes
+  become: yes
   when: not users_api_jar.stat.exists or git_pull.changed
 
 - name: Stop existing containers (if any)
@@ -72,7 +98,6 @@
   args:
     chdir: "{{ app_directory }}"
   become: yes
-  become_user: "{{ deploy_user }}"
   ignore_errors: yes
 
 - name: Build and start Docker containers
@@ -80,7 +105,6 @@
   args:
     chdir: "{{ app_directory }}"
   become: yes
-  become_user: "{{ deploy_user }}"
   register: docker_compose_up
 
 - name: Wait for services to be healthy
@@ -92,7 +116,6 @@
   args:
     chdir: "{{ app_directory }}"
   become: yes
-  become_user: "{{ deploy_user }}"
   register: container_status
   changed_when: false
 
