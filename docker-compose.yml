@@ -72,6 +72,9 @@ services:
 
   log-message-processor:
     build: ./log-message-processor
+    depends_on:
+      redis:
+        condition: service_healthy  # Wait for Redis to be healthy
     networks:
       - appnet
     environment:
@@ -83,9 +86,14 @@ services:
     image: redis:7-alpine
     networks:
       - appnet
+    healthcheck:  # Add health check
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   traefik:
-    image: traefik:v2.10
+    image: traefik:3.6.2
     command:
       - --api.insecure=true
       - --providers.docker=true
