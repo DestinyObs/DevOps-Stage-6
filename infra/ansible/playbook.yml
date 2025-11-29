@@ -4,6 +4,10 @@
 - name: Deploy DevOps Stage 6 TODO Application
   hosts: app_server
   gather_facts: yes
+
+   # Fix for Ansible privilege escalation with unprivileged user
+  vars:
+    ansible_common_remote_group: "{{ deploy_user }}"
   
   roles:
     - role: dependencies

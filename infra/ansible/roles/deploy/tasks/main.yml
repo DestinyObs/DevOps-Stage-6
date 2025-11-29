@@ -15,14 +15,7 @@
     path: "{{ app_directory }}/.git"
   register: repo_exists
 
-- name: Configure Git safe directory for deploy user
-  command: git config --global --add safe.directory {{ app_directory }}
-  become: yes
-  become_user: "{{ deploy_user }}"
-  when: repo_exists.stat.exists
-  ignore_errors: yes
-
-- name: Clone application repository
+- name: Clone application repository (first time)
   git:
     repo: "{{ app_repo }}"
     dest: "{{ app_directory }}"
@@ -30,6 +23,7 @@
     force: no
   become: yes
   become_user: "{{ deploy_user }}"
+  become_flags: '-i'
   when: not repo_exists.stat.exists
 
 - name: Set ownership of cloned repository
@@ -49,6 +43,7 @@
     force: no
   become: yes
   become_user: "{{ deploy_user }}"
+  become_flags: '-i'
   register: git_pull
   when: repo_exists.stat.exists
 
@@ -85,11 +80,12 @@
   register: users_api_jar
 
 - name: Build users-api JAR with Maven
-  command: ./mvnw clean package -DskipTests
-  args:
-    chdir: "{{ app_directory }}/users-api"
+  shell: |
+    cd {{ app_directory }}/users-api
+    ./mvnw clean package -DskipTests
   become: yes
   become_user: "{{ deploy_user }}"
+  become_flags: '-i'
   environment:
     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
     PATH: "/usr/lib/jvm/java-8-openjdk-amd64/bin:{{ ansible_env.PATH }}"
@@ -106,19 +102,21 @@
   when: not users_api_jar.stat.exists or git_pull.changed
 
 - name: Stop existing containers (if any)
-  command: docker compose down
+  shell: docker compose down
   args:
     chdir: "{{ app_directory }}"
   become: yes
   become_user: "{{ deploy_user }}"
+  become_flags: '-i'
   ignore_errors: yes
 
 - name: Build and start Docker containers
-  command: docker compose up -d --build
+  shell: docker compose up -d --build
   args:
     chdir: "{{ app_directory }}"
   become: yes
   become_user: "{{ deploy_user }}"
+  become_flags: '-i'
   register: docker_compose_up
 
 - name: Wait for services to be healthy
@@ -126,11 +124,12 @@
     seconds: 30
 
 - name: Check running containers
-  command: docker compose ps
+  shell: docker compose ps
   args:
     chdir: "{{ app_directory }}"
   become: yes
   become_user: "{{ deploy_user }}"
+  become_flags: '-i'
   register: container_status
   changed_when: false
 
