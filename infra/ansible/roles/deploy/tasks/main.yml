@@ -15,6 +15,13 @@
     path: "{{ app_directory }}/.git"
   register: repo_exists
 
+- name: Configure Git safe directory for deploy user
+  command: git config --global --add safe.directory {{ app_directory }}
+  become: yes
+  become_user: "{{ deploy_user }}"
+  when: repo_exists.stat.exists
+  ignore_errors: yes
+
 - name: Clone application repository
   git:
     repo: "{{ app_repo }}"
@@ -22,6 +29,7 @@
     version: main
     force: no
   become: yes
+  become_user: "{{ deploy_user }}"
   when: not repo_exists.stat.exists
 
 - name: Set ownership of cloned repository
@@ -40,6 +48,7 @@
     version: main
     force: no
   become: yes
+  become_user: "{{ deploy_user }}"
   register: git_pull
   when: repo_exists.stat.exists
 
