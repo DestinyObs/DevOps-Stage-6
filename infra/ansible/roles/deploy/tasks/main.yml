@@ -1,61 +1,37 @@
 ---
 # Deploy Role - Clone repo, deploy application
 
-- name: Ensure application directory exists
+- name: Ensure parent directory exists
   file:
-    path: "{{ app_directory | dirname }}"
+    path: "/home/deploy"
     state: directory
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: '0755'
   become: yes
 
-- name: Check if repository exists
-  stat:
-    path: "{{ app_directory }}/.git"
-  register: repo_exists
-
-- name: Configure Git to trust repository directory (as root)
+- name: Configure Git to trust repository directory
   command: git config --global --add safe.directory {{ app_directory }}
   become: yes
   ignore_errors: yes
 
-- name: Clone application repository (first time)
+- name: Clone or update application repository
   git:
     repo: "{{ app_repo }}"
     dest: "{{ app_directory }}"
     version: main
     force: no
+    update: yes
   become: yes
-  when: not repo_exists.stat.exists
+  register: git_result
 
-- name: Set ownership of cloned repository
+- name: Set ownership of repository
   file:
     path: "{{ app_directory }}"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     recurse: yes
   become: yes
-  when: not repo_exists.stat.exists
-
-- name: Pull latest changes from repository
-  git:
-    repo: "{{ app_repo }}"
-    dest: "{{ app_directory }}"
-    version: main
-    force: no
-  become: yes
-  register: git_pull
-  when: repo_exists.stat.exists
-
-- name: Set ownership after pull
-  file:
-    path: "{{ app_directory }}"
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    recurse: yes
-  become: yes
-  when: repo_exists.stat.exists and git_pull.changed
 
 - name: Create Traefik certificates directory in app
   file:
@@ -88,7 +64,7 @@
   environment:
     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
     PATH: "/usr/lib/jvm/java-8-openjdk-amd64/bin:{{ ansible_env.PATH }}"
-  when: not users_api_jar.stat.exists or git_pull.changed
+  when: not users_api_jar.stat.exists or git_result.changed
 
 - name: Set ownership of built JAR
   file:
@@ -97,7 +73,7 @@
     group: "{{ deploy_user }}"
     recurse: yes
   become: yes
-  when: not users_api_jar.stat.exists or git_pull.changed
+  when: not users_api_jar.stat.exists or git_result.changed
 
 - name: Stop existing containers (if any)
   shell: docker compose down

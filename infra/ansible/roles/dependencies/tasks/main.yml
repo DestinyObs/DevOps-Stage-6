@@ -1,6 +1,15 @@
 ---
 # Dependencies Role - Install Docker, Docker Compose, Git, Java
 
+- name: Create deploy user
+  user:
+    name: "{{ deploy_user }}"
+    shell: /bin/bash
+    create_home: yes
+    home: /home/deploy
+    state: present
+  become: yes
+
 - name: Update apt cache
   apt:
     update_cache: yes
