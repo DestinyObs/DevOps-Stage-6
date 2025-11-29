@@ -82,7 +82,7 @@ jobs:
       - name: Run Ansible Deployment
         working-directory: infra/ansible
         run: |
-          ansible-playbook -i inventory/hosts.yml playbook.yml --tags deploy
+          ansible-playbook -i inventory/hosts.yml playbook.yml
 
       - name: Verify Deployment
         run: |
