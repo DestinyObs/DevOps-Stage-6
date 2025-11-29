@@ -1,5 +1,5 @@
 ---
-# Dependencies Role - Install Docker, Docker Compose, Git
+# Dependencies Role - Install Docker, Docker Compose, Git, Java
 
 - name: Update apt cache
   apt:
@@ -19,6 +19,49 @@
       - python3-pip
     state: present
   become: yes
+
+# ============================================================================
+# Java 8 Installation (Required for Spring Boot users-api Maven build)
+# ============================================================================
+
+- name: Install OpenJDK 8
+  apt:
+    name:
+      - openjdk-8-jdk
+      - openjdk-8-jre
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Set JAVA_HOME environment variable globally
+  lineinfile:
+    path: /etc/environment
+    regexp: '^JAVA_HOME='
+    line: 'JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64'
+    state: present
+  become: yes
+
+- name: Create profile.d script for Java environment
+  copy:
+    dest: /etc/profile.d/java.sh
+    content: |
+      export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+      export PATH=$JAVA_HOME/bin:$PATH
+    mode: '0644'
+  become: yes
+
+- name: Verify Java installation
+  command: java -version
+  register: java_version
+  changed_when: false
+
+- name: Display Java version
+  debug:
+    msg: "Java installed: {{ java_version.stderr_lines[0] }}"
+
+# ============================================================================
+# Docker Installation
+# ============================================================================
 
 - name: Add Docker GPG key
   apt_key:
@@ -83,6 +126,10 @@
 - name: Display Docker Compose version
   debug:
     msg: "Docker Compose installed: {{ compose_version.stdout }}"
+
+# ============================================================================
+# Traefik Setup
+# ============================================================================
 
 - name: Create directory for Traefik certificates
   file:

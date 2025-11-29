@@ -80,7 +80,10 @@
   args:
     chdir: "{{ app_directory }}/users-api"
   become: yes
+  become_user: "{{ deploy_user }}"
   environment:
+    JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
+    PATH: "/usr/lib/jvm/java-8-openjdk-amd64/bin:{{ ansible_env.PATH }}"
     HOME: "/home/{{ deploy_user }}"
   when: not users_api_jar.stat.exists or git_pull.changed
 
@@ -98,6 +101,7 @@
   args:
     chdir: "{{ app_directory }}"
   become: yes
+  become_user: "{{ deploy_user }}"
   ignore_errors: yes
 
 - name: Build and start Docker containers
@@ -105,6 +109,7 @@
   args:
     chdir: "{{ app_directory }}"
   become: yes
+  become_user: "{{ deploy_user }}"
   register: docker_compose_up
 
 - name: Wait for services to be healthy
@@ -116,6 +121,7 @@
   args:
     chdir: "{{ app_directory }}"
   become: yes
+  become_user: "{{ deploy_user }}"
   register: container_status
   changed_when: false
 
