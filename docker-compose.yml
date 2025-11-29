@@ -85,7 +85,7 @@ services:
       - appnet
 
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3.2
     command:
       - --api.insecure=true
       - --providers.docker=true
