@@ -28,7 +28,7 @@ infra/
         └── deploy/        # Deploy application
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -63,14 +63,14 @@ infra/
    ```
 
 This single command will:
-- ✅ Provision VPC, subnet, security groups
-- ✅ Launch EC2 instance
-- ✅ Generate Ansible inventory
-- ✅ Install dependencies (Docker, Git, etc.)
-- ✅ Deploy application with Docker Compose
-- ✅ Configure Traefik with SSL
+- Provision VPC, subnet, security groups
+- Launch EC2 instance
+- Generate Ansible inventory
+- Install dependencies (Docker, Git, etc.)
+- Deploy application with Docker Compose
+- Configure Traefik with SSL
 
-## 🔒 Security Features
+## Security Features
 
 ### Drift Detection
 The infrastructure includes automated drift detection:
@@ -140,7 +140,7 @@ cd infra/terraform
 terraform destroy
 ```
 
-## 📊 Terraform Outputs
+## Terraform Outputs
 
 After successful apply, you'll see:
 - `instance_public_ip` - Server IP address
@@ -181,17 +181,17 @@ Set these in your GitHub repository:
 - `SMTP_PASSWORD` - Email password
 - `NOTIFICATION_EMAIL` - Alert recipient email
 
-## 🎯 Key Features
+## Key Features
 
-✅ **Modular Terraform** - Clean module structure
-✅ **Drift Detection** - Automatic detection with email alerts
-✅ **Idempotent** - Safe to run multiple times
-✅ **Automated Deployment** - Single command setup
-✅ **CI/CD Integration** - Separate infra and app pipelines
-✅ **Email Notifications** - Stay informed of changes
-✅ **Security Groups** - Properly configured firewall rules
-✅ **SSL/HTTPS** - Automatic certificate management
-✅ **Remote State** - S3 backend with state locking
+**Modular Terraform** - Clean module structure
+**Drift Detection** - Automatic detection with email alerts
+**Idempotent** - Safe to run multiple times
+**Automated Deployment** - Single command setup
+**CI/CD Integration** - Separate infra and app pipelines
+**Email Notifications** - Stay informed of changes
+**Security Groups** - Properly configured firewall rules
+**SSL/HTTPS** - Automatic certificate management
+**Remote State** - S3 backend with state locking
 
 ## 📅 Maintenance
 

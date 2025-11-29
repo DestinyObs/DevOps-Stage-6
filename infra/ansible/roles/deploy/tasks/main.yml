@@ -15,6 +15,11 @@
     path: "{{ app_directory }}/.git"
   register: repo_exists
 
+- name: Configure Git to trust repository directory (as root)
+  command: git config --global --add safe.directory {{ app_directory }}
+  become: yes
+  ignore_errors: yes
+
 - name: Clone application repository (first time)
   git:
     repo: "{{ app_repo }}"
@@ -22,8 +27,6 @@
     version: main
     force: no
   become: yes
-  become_user: "{{ deploy_user }}"
-  become_flags: '-i'
   when: not repo_exists.stat.exists
 
 - name: Set ownership of cloned repository
@@ -42,8 +45,6 @@
     version: main
     force: no
   become: yes
-  become_user: "{{ deploy_user }}"
-  become_flags: '-i'
   register: git_pull
   when: repo_exists.stat.exists
 
@@ -84,12 +85,9 @@
     cd {{ app_directory }}/users-api
     ./mvnw clean package -DskipTests
   become: yes
-  become_user: "{{ deploy_user }}"
-  become_flags: '-i'
   environment:
     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
     PATH: "/usr/lib/jvm/java-8-openjdk-amd64/bin:{{ ansible_env.PATH }}"
-    HOME: "/home/{{ deploy_user }}"
   when: not users_api_jar.stat.exists or git_pull.changed
 
 - name: Set ownership of built JAR
@@ -106,8 +104,6 @@
   args:
     chdir: "{{ app_directory }}"
   become: yes
-  become_user: "{{ deploy_user }}"
-  become_flags: '-i'
   ignore_errors: yes
 
 - name: Build and start Docker containers
@@ -115,8 +111,6 @@
   args:
     chdir: "{{ app_directory }}"
   become: yes
-  become_user: "{{ deploy_user }}"
-  become_flags: '-i'
   register: docker_compose_up
 
 - name: Wait for services to be healthy
@@ -128,8 +122,6 @@
   args:
     chdir: "{{ app_directory }}"
   become: yes
-  become_user: "{{ deploy_user }}"
-  become_flags: '-i'
   register: container_status
   changed_when: false
 

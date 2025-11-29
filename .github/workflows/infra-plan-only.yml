@@ -63,11 +63,11 @@ jobs:
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           
           if [ "$EXIT_CODE" == "0" ]; then
-            echo "✅ No changes needed"
+            echo "No changes needed"
           elif [ "$EXIT_CODE" == "2" ]; then
-            echo "⚠️ Changes detected"
+            echo "Changes detected"
           else
-            echo "❌ Plan failed"
+            echo "Plan failed"
             exit 1
           fi
 
@@ -78,9 +78,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ steps.plan.outputs.exit_code }}" == "0" ]; then
-            echo "✅ **No changes needed** - Infrastructure matches desired state" >> $GITHUB_STEP_SUMMARY
+            echo "**No changes needed** - Infrastructure matches desired state" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.plan.outputs.exit_code }}" == "2" ]; then
-            echo "⚠️ **Changes detected** - See plan output below" >> $GITHUB_STEP_SUMMARY
+            echo "**Changes detected** - See plan output below" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`terraform" >> $GITHUB_STEP_SUMMARY
             tail -n 50 plan_output.txt >> $GITHUB_STEP_SUMMARY
@@ -106,14 +106,14 @@ jobs:
             let comment = '## 🏗️ Terraform Plan Results\n\n';
             
             if (exitCode === '0') {
-              comment += '✅ **No changes needed** - Infrastructure matches desired state\n';
+              comment += '**No changes needed** - Infrastructure matches desired state\n';
             } else if (exitCode === '2') {
-              comment += '⚠️ **Changes detected** - Review the plan below:\n\n';
+              comment += '**Changes detected** - Review the plan below:\n\n';
               comment += '<details><summary>View Plan Output</summary>\n\n```terraform\n';
               comment += planOutput.slice(0, 60000); // GitHub comment size limit
               comment += '\n```\n</details>\n';
             } else {
-              comment += '❌ **Plan failed** - Check the workflow logs\n';
+              comment += '**Plan failed** - Check the workflow logs\n';
             }
             
             github.rest.issues.createComment({
@@ -131,7 +131,7 @@ jobs:
           server_port: 587
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "${{ steps.plan.outputs.exit_code == '0' && '✅' || steps.plan.outputs.exit_code == '2' && '⚠️' || '❌' }} Terraform Plan Dry Run"
+          subject: "Terraform Plan Dry Run - ${{ steps.plan.outputs.exit_code == '0' && 'No Changes' || steps.plan.outputs.exit_code == '2' && 'Changes Detected' || 'Failed' }}"
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: DevOps Stage 6 CI/CD
           body: |
@@ -141,7 +141,7 @@ jobs:
             Branch: ${{ github.ref_name }}
             Triggered by: ${{ github.actor }}
             
-            Result: ${{ steps.plan.outputs.exit_code == '0' && 'No changes needed ✅' || steps.plan.outputs.exit_code == '2' && 'Changes detected ⚠️' || 'Plan failed ❌' }}
+            Result: ${{ steps.plan.outputs.exit_code == '0' && 'No changes needed' || steps.plan.outputs.exit_code == '2' && 'Changes detected' || 'Plan failed' }}
             
             ${{ steps.plan.outputs.exit_code == '0' && 'Infrastructure matches the desired state.' || steps.plan.outputs.exit_code == '2' && 'Infrastructure changes detected. Review the plan in the workflow output.' || 'Plan execution failed. Check the logs.' }}
             

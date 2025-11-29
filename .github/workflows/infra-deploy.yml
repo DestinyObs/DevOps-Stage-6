@@ -69,12 +69,12 @@ jobs:
           EXIT_CODE=${{ steps.plan.outputs.exit_code }}
           if [ "$EXIT_CODE" == "2" ]; then
             echo "has_drift=true" >> $GITHUB_OUTPUT
-            echo "⚠️ Changes detected - Infrastructure will be updated"
+            echo "Changes detected - Infrastructure will be updated"
           elif [ "$EXIT_CODE" == "0" ]; then
             echo "has_drift=false" >> $GITHUB_OUTPUT
-            echo "✅ No changes needed - Infrastructure matches desired state"
+            echo "No changes needed - Infrastructure matches desired state"
           else
-            echo "❌ Terraform plan failed"
+            echo "Terraform plan failed"
             exit 1
           fi
 
@@ -92,7 +92,7 @@ jobs:
           server_port: 587
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "⚠️ Infrastructure Changes Detected - Review Required"
+          subject: "Infrastructure Changes Detected - Review Required"
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: DevOps Stage 6 CI/CD
           body: |
@@ -132,9 +132,9 @@ jobs:
     - name: Manual approval checkpoint
       run: |
         if [ "${{ needs.terraform-plan.outputs.has_drift }}" == "true" ]; then
-          echo "✅ Changes approved - Deploying infrastructure updates"
+          echo "Changes approved - Deploying infrastructure updates"
         else
-          echo "✅ No changes detected - Deployment approved to proceed"
+          echo "No changes detected - Deployment approved to proceed"
         fi
 
   terraform-apply:

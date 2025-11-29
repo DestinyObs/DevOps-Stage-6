@@ -66,12 +66,12 @@ jobs:
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
           TF_VAR_ssh_private_key_path: ~/.ssh/id_rsa
         run: |
-          echo "⚠️ The following resources will be DESTROYED:"
+          echo "WARNING: The following resources will be DESTROYED:"
           terraform plan -destroy -no-color
 
       - name: Wait for final confirmation
         run: |
-          echo "⚠️⚠️⚠️ FINAL WARNING ⚠️⚠️⚠️"
+          echo "=== FINAL WARNING ==="
           echo "This will DESTROY all infrastructure resources!"
           echo "Proceeding in 10 seconds..."
           sleep 10
@@ -93,7 +93,7 @@ jobs:
           server_port: 587
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "${{ job.status == 'success' && '🗑️' || '❌' }} Infrastructure Destruction ${{ job.status }}"
+          subject: "Infrastructure Destruction ${{ job.status }}"
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: DevOps Stage 6 CI/CD
           body: |
@@ -103,6 +103,6 @@ jobs:
             Triggered by: ${{ github.actor }}
             Timestamp: ${{ github.event.repository.updated_at }}
             
-            ${{ job.status == 'success' && '✅ All infrastructure resources have been destroyed.' || '❌ Destruction failed. Some resources may still exist. Please check AWS Console.' }}
+            ${{ job.status == 'success' && 'All infrastructure resources have been destroyed.' || 'Destruction failed. Some resources may still exist. Please check AWS Console.' }}
             
-            ⚠️ Note: Check your AWS Console to verify all resources are removed.
+            Note: Check your AWS Console to verify all resources are removed.
