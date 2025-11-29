@@ -84,7 +84,7 @@ jobs:
           name: terraform-plan
           path: infra/terraform/plan_output.txt
 
-      - name: Send Infrastructure Changes Email
+      - name: Send Drift Detection Email - Changes Detected
         if: steps.drift_check.outputs.has_drift == 'true'
         uses: dawidd6/action-send-mail@v3
         with:
@@ -92,25 +92,64 @@ jobs:
           server_port: 587
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "Infrastructure Changes Detected - Review Required"
+          subject: "DRIFT ALERT: Infrastructure Changes Detected - Review Required"
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: DevOps Stage 6 CI/CD
           body: |
-            Infrastructure changes have been detected and require your review!
+            INFRASTRUCTURE DRIFT DETECTED
+            
+            Terraform has detected changes to your infrastructure that require review and approval.
             
             Repository: ${{ github.repository }}
             Branch: ${{ github.ref_name }}
             Commit: ${{ github.sha }}
             Triggered by: ${{ github.actor }}
+            Workflow: Infrastructure Deployment with Drift Detection
             
-            Action: Terraform detected changes to infrastructure
-            Status: Waiting for manual approval in production environment
+            Status: CHANGES DETECTED
+            Action Required: Manual approval needed to apply changes
+            
+            This could be:
+            - First deployment (creating new infrastructure)
+            - Manual infrastructure changes outside Terraform
+            - Configuration drift from desired state
+            - Terraform code changes
             
             View the full plan and approve the deployment:
             ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Send Drift Detection Email - No Changes
+        if: steps.drift_check.outputs.has_drift == 'false'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "DRIFT CHECK: No Infrastructure Changes - All Aligned"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: DevOps Stage 6 CI/CD
+          body: |
+            NO INFRASTRUCTURE DRIFT DETECTED
             
-            Note: For first deployment, this creates new infrastructure.
-            For subsequent runs, this indicates drift from desired state.
+            Terraform drift detection completed successfully. Your infrastructure matches the desired state.
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
+            Workflow: Infrastructure Deployment with Drift Detection
+            
+            Status: NO CHANGES NEEDED
+            Result: Infrastructure is aligned with Terraform configuration
+            
+            This means:
+            - No manual changes were made outside Terraform
+            - Infrastructure matches your desired state exactly
+            - No drift correction needed
+            
+            Workflow will proceed without applying changes.
+            View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   # ----------------------------------------------------------------------------
   # Job: Wait for Manual Approval (if drift detected)

@@ -9,10 +9,15 @@ services:
       - appnet
     labels:
       - "traefik.enable=true"
+      # HTTPS route for domain
       - "traefik.http.routers.frontend.rule=Host(`destinyobs.mooo.com`)"
       - "traefik.http.routers.frontend.entrypoints=web,websecure"
       - "traefik.http.routers.frontend.priority=1"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      # HTTP fallback for IP/localhost access
+      - "traefik.http.routers.frontend-http.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend-http.entrypoints=web"
+      - "traefik.http.routers.frontend-http.priority=1"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
   auth-api:
@@ -25,12 +30,18 @@ services:
       - JWT_SECRET=myfancysecret
     labels:
       - "traefik.enable=true"
+      # HTTPS route for domain
       - "traefik.http.routers.auth-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/auth`)"
       - "traefik.http.routers.auth-api.entrypoints=web,websecure"
       - "traefik.http.routers.auth-api.priority=10"
       - "traefik.http.routers.auth-api.middlewares=auth-strip"
-      - "traefik.http.middlewares.auth-strip.stripprefixregex.regex=^/api/auth"
       - "traefik.http.routers.auth-api.tls.certresolver=letsencrypt"
+      # HTTP fallback for IP/localhost access
+      - "traefik.http.routers.auth-api-http.rule=PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.auth-api-http.entrypoints=web"
+      - "traefik.http.routers.auth-api-http.priority=10"
+      - "traefik.http.routers.auth-api-http.middlewares=auth-strip"
+      - "traefik.http.middlewares.auth-strip.stripprefixregex.regex=^/api/auth"
       - "traefik.http.services.auth-api.loadbalancer.server.port=8080"
 
   todos-api:
@@ -45,12 +56,18 @@ services:
       - JWT_SECRET=myfancysecret
     labels:
       - "traefik.enable=true"
+      # HTTPS route for domain
       - "traefik.http.routers.todos-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/todos`)"
       - "traefik.http.routers.todos-api.entrypoints=web,websecure"
       - "traefik.http.routers.todos-api.priority=10"
       - "traefik.http.routers.todos-api.middlewares=todos-strip"
-      - "traefik.http.middlewares.todos-strip.stripprefixregex.regex=^/api"
       - "traefik.http.routers.todos-api.tls.certresolver=letsencrypt"
+      # HTTP fallback for IP/localhost access
+      - "traefik.http.routers.todos-api-http.rule=PathPrefix(`/api/todos`)"
+      - "traefik.http.routers.todos-api-http.entrypoints=web"
+      - "traefik.http.routers.todos-api-http.priority=10"
+      - "traefik.http.routers.todos-api-http.middlewares=todos-strip"
+      - "traefik.http.middlewares.todos-strip.stripprefixregex.regex=^/api"
       - "traefik.http.services.todos-api.loadbalancer.server.port=8082"
 
   users-api:
@@ -62,12 +79,18 @@ services:
       - SERVER_PORT=8080
     labels:
       - "traefik.enable=true"
+      # HTTPS route for domain
       - "traefik.http.routers.users-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/users`)"
       - "traefik.http.routers.users-api.entrypoints=web,websecure"
       - "traefik.http.routers.users-api.priority=10"
       - "traefik.http.routers.users-api.middlewares=users-strip"
-      - "traefik.http.middlewares.users-strip.stripprefixregex.regex=^/api"
       - "traefik.http.routers.users-api.tls.certresolver=letsencrypt"
+      # HTTP fallback for IP/localhost access
+      - "traefik.http.routers.users-api-http.rule=PathPrefix(`/api/users`)"
+      - "traefik.http.routers.users-api-http.entrypoints=web"
+      - "traefik.http.routers.users-api-http.priority=10"
+      - "traefik.http.routers.users-api-http.middlewares=users-strip"
+      - "traefik.http.middlewares.users-strip.stripprefixregex.regex=^/api"
       - "traefik.http.services.users-api.loadbalancer.server.port=8080"
 
   log-message-processor:
