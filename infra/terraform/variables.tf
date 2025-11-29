@@ -88,7 +88,7 @@ variable "deploy_user" {
 
 # Application Configuration
 variable "domain_name" {
-  description = "Domain name for the application (can be set after getting EC2 IP)"
+  description = "Domain name for the application"
   type        = string
   default     = "destinyobs.mooo.com"
 }

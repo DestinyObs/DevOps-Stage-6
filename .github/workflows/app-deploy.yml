@@ -23,12 +23,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Get Server IP from Terraform
+        id: terraform
+        working-directory: infra/terraform
+        run: |
+          SERVER_IP=$(terraform output -raw instance_public_ip)
+          echo "server_ip=$SERVER_IP" >> $GITHUB_OUTPUT
+          echo "Server IP: $SERVER_IP"
+
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ steps.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Install Ansible
         run: |
@@ -42,12 +67,12 @@ jobs:
           all:
             hosts:
               app_server:
-                ansible_host: ${{ secrets.SERVER_IP }}
+                ansible_host: ${{ steps.terraform.outputs.server_ip }}
                 ansible_user: ubuntu
                 ansible_ssh_private_key_file: ~/.ssh/id_rsa
                 ansible_python_interpreter: /usr/bin/python3
                 deploy_user: deploy
-                domain_name: destinyobs.mooo.com
+                domain_name: ${{ secrets.DOMAIN_NAME || 'destinyobs.mooo.com' }}
                 app_repo: https://github.com/${{ github.repository }}.git
                 app_directory: /home/deploy/DevOps-Stage-6
             vars:
@@ -62,7 +87,7 @@ jobs:
       - name: Verify Deployment
         run: |
           sleep 30
-          curl -f https://destinyobs.mooo.com || exit 1
+          curl -f https://${{ secrets.DOMAIN_NAME || 'destinyobs.mooo.com' }} || exit 1
 
       - name: Send Deployment Notification
         if: always()
@@ -83,6 +108,7 @@ jobs:
             Commit: ${{ github.sha }}
             Triggered by: ${{ github.actor }}
             
-            Application URL: https://destinyobs.mooo.com
+            Server IP: ${{ steps.terraform.outputs.server_ip }}
+            Application URL: https://${{ secrets.DOMAIN_NAME || 'destinyobs.mooo.com' }}
             
             ${{ job.status == 'success' && 'All services are running successfully.' || 'Deployment failed. Please check the logs.' }}
