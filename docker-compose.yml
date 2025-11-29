@@ -95,6 +95,8 @@ services:
       - --certificatesresolvers.letsencrypt.acme.email=destinyobueh14@gmail.com
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+    environment:
+      - DOCKER_API_VERSION=1.44
     ports:
       - "80:80"
       - "443:443"
