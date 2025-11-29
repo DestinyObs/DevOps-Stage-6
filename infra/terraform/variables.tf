@@ -90,5 +90,5 @@ variable "deploy_user" {
 variable "domain_name" {
   description = "Domain name for the application (can be set after getting EC2 IP)"
   type        = string
-  default     = "localhost"  # Default to localhost, update after getting IP
+  default     = "destinyobs.mooo.com"
 }

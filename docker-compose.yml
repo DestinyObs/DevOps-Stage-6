@@ -9,7 +9,7 @@ services:
       - appnet
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`destinyobs.mooo.com`)"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN_NAME:-destinyobs.mooo.com}`)"
       - "traefik.http.routers.frontend.entrypoints=web,websecure"
       - "traefik.http.routers.frontend.priority=1"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
@@ -25,7 +25,7 @@ services:
       - JWT_SECRET=myfancysecret
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.auth-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.auth-api.rule=Host(`${DOMAIN_NAME:-destinyobs.mooo.com}`) && PathPrefix(`/api/auth`)"
       - "traefik.http.routers.auth-api.entrypoints=web,websecure"
       - "traefik.http.routers.auth-api.priority=10"
       - "traefik.http.routers.auth-api.middlewares=auth-strip"
@@ -45,7 +45,7 @@ services:
       - JWT_SECRET=myfancysecret
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.todos-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/todos`)"
+      - "traefik.http.routers.todos-api.rule=Host(`${DOMAIN_NAME:-destinyobs.mooo.com}`) && PathPrefix(`/api/todos`)"
       - "traefik.http.routers.todos-api.entrypoints=web,websecure"
       - "traefik.http.routers.todos-api.priority=10"
       - "traefik.http.routers.todos-api.middlewares=todos-strip"
@@ -62,7 +62,7 @@ services:
       - SERVER_PORT=8080
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.users-api.rule=Host(`destinyobs.mooo.com`) && PathPrefix(`/api/users`)"
+      - "traefik.http.routers.users-api.rule=Host(`${DOMAIN_NAME:-destinyobs.mooo.com}`) && PathPrefix(`/api/users`)"
       - "traefik.http.routers.users-api.entrypoints=web,websecure"
       - "traefik.http.routers.users-api.priority=10"
       - "traefik.http.routers.users-api.middlewares=users-strip"

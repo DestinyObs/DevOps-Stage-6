@@ -106,6 +106,16 @@
   become: yes
   ignore_errors: yes
 
+- name: Create .env file
+  copy:
+    content: |
+      DOMAIN_NAME={{ domain_name }}
+    dest: "{{ app_directory }}/.env"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+  become: yes
+
 - name: Build and start Docker containers
   shell: docker compose up -d --build
   args:
