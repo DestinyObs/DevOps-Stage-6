@@ -15,7 +15,26 @@
   become: yes
   ignore_errors: yes
 
-- name: Clone or update application repository
+- name: Check if repository exists
+  stat:
+    path: "{{ app_directory }}/.git"
+  register: repo_exists
+
+- name: Clone application repository (first time)
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ app_directory }}"
+    version: main
+  become: yes
+  when: not repo_exists.stat.exists
+
+- name: Stash local changes before pulling
+  command: git -C {{ app_directory }} stash
+  become: yes
+  when: repo_exists.stat.exists
+  ignore_errors: yes
+
+- name: Pull latest changes from repository
   git:
     repo: "{{ app_repo }}"
     dest: "{{ app_directory }}"
@@ -24,6 +43,13 @@
     update: yes
   become: yes
   register: git_result
+  when: repo_exists.stat.exists
+
+- name: Pop stashed changes
+  command: git -C {{ app_directory }} stash pop
+  become: yes
+  when: repo_exists.stat.exists
+  ignore_errors: yes
 
 - name: Set ownership of repository
   file:
@@ -64,7 +90,7 @@
   environment:
     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
     PATH: "/usr/lib/jvm/java-8-openjdk-amd64/bin:{{ ansible_env.PATH }}"
-  when: not users_api_jar.stat.exists or git_result.changed
+  when: not users_api_jar.stat.exists or (git_result is defined and git_result.changed)
 
 - name: Set ownership of built JAR
   file:
@@ -73,7 +99,7 @@
     group: "{{ deploy_user }}"
     recurse: yes
   become: yes
-  when: not users_api_jar.stat.exists or git_result.changed
+  when: not users_api_jar.stat.exists or (git_result is defined and git_result.changed)
 
 - name: Stop existing containers (if any)
   shell: docker compose down
