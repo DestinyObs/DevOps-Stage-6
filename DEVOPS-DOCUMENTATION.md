@@ -2345,130 +2345,804 @@ ansible-playbook playbook.yml
 
 ### 1. Infrastructure Deployment Workflow
 
-**File:** `infra-deploy.yml`  
-**Name:** Infrastructure Deployment with Drift Detection
+**File:** `.github/workflows/infra-deploy.yml`
 
-**Triggers:**
-- Push to main branch (paths: infra/terraform/**, infra/ansible/**)
-- Manual workflow_dispatch
+#### Complete Workflow Code:
 
-**Environment Variables:**
-- AWS_REGION: us-east-1
-- TF_VERSION: 1.6.0
+```yaml
+name: Infrastructure Deployment with Drift Detection
 
-**Jobs:**
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/terraform/**'
+      - 'infra/ansible/**'
+      - '.github/workflows/infra-deploy.yml'
+  workflow_dispatch:
 
-#### Job 1: terraform-plan (Drift Detection)
-**Purpose:** Detect infrastructure drift and plan changes
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.6.0
 
-**Steps:**
-1. Checkout code
-2. Configure AWS credentials
-3. Setup Terraform 1.6.0
-4. Terraform init
-5. Terraform validate
-6. **Terraform plan** with detailed exit code:
-   - Exit 0: No changes (no drift)
-   - Exit 2: Changes detected (drift found)
-   - Other: Plan failed
-7. Upload plan output as artifact
-8. **Send drift detection email:**
-   - **If drift detected:** "DRIFT ALERT: Infrastructure Changes Detected - Review Required"
-   - **If no drift:** "DRIFT CHECK: No Infrastructure Changes - All Aligned"
+jobs:
+  terraform-plan:
+    name: Terraform Plan & Drift Detection
+    runs-on: ubuntu-latest
+    outputs:
+      has_drift: ${{ steps.drift_check.outputs.has_drift }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-**Email Service:** Gmail SMTP (port 587)  
-**Recipients:** From NOTIFICATION_EMAIL secret
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-#### Job 2: wait-for-approval
-**Purpose:** Manual approval checkpoint
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
-**Conditions:** Runs after terraform-plan  
-**Environment:** production (requires manual approval in GitHub)
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
 
-**Steps:**
-1. Manual approval checkpoint
-   - GitHub pauses workflow
-   - Requires reviewer approval
-   - Only proceeds after approval
+      - name: Terraform Validate
+        working-directory: infra/terraform
+        run: terraform validate
 
-#### Job 3: terraform-apply
-**Purpose:** Apply infrastructure changes
+      - name: Terraform Plan
+        id: plan
+        working-directory: infra/terraform
+        env:
+          TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME || 'destinyobs.mooo.com' }}
+          TF_VAR_owner_email: ${{ secrets.NOTIFICATION_EMAIL }}
+          TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_private_key_path: ~/.ssh/id_rsa
+        run: |
+          set +e
+          terraform plan -out=tfplan -detailed-exitcode
+          EXIT_CODE=$?
+          set -e
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          terraform show -no-color tfplan > plan_output.txt
+          exit 0
+        continue-on-error: false
 
-**Conditions:** 
-- Runs after terraform-plan and wait-for-approval
-- Only if both jobs succeeded
+      - name: Check for Drift
+        id: drift_check
+        run: |
+          EXIT_CODE=${{ steps.plan.outputs.exit_code }}
+          if [ "$EXIT_CODE" == "2" ]; then
+            echo "has_drift=true" >> $GITHUB_OUTPUT
+            echo "Changes detected - Infrastructure will be updated"
+          elif [ "$EXIT_CODE" == "0" ]; then
+            echo "has_drift=false" >> $GITHUB_OUTPUT
+            echo "No changes needed - Infrastructure matches desired state"
+          else
+            echo "Terraform plan failed"
+            exit 1
+          fi
 
-**Steps:**
-1. Checkout code
-2. Configure AWS credentials
-3. Setup Terraform 1.6.0
-4. Setup SSH key for Ansible (from SSH_PRIVATE_KEY secret)
-5. Install Ansible
-6. Terraform init
-7. **Terraform apply -auto-approve**
-8. **Send deployment email:**
-   - Success: "✅ Terraform Deployment Successful"
-   - Failure: "❌ Terraform Deployment Failed"
+      - name: Upload plan output
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: infra/terraform/plan_output.txt
 
-**Secrets Required:**
-- AWS_ACCESS_KEY_ID
-- AWS_SECRET_ACCESS_KEY
-- SSH_PRIVATE_KEY
-- SSH_PUBLIC_KEY
-- DOMAIN_NAME
-- NOTIFICATION_EMAIL
-- SMTP_USERNAME
-- SMTP_PASSWORD
+      - name: Send Drift Detection Email - Changes Detected
+        if: steps.drift_check.outputs.has_drift == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "DRIFT ALERT: Infrastructure Changes Detected - Review Required"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: DevOps Stage 6 CI/CD
+          body: |
+            INFRASTRUCTURE DRIFT DETECTED
+            
+            Terraform has detected changes to your infrastructure that require review and approval.
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
+            Workflow: Infrastructure Deployment with Drift Detection
+            
+            Status: CHANGES DETECTED
+            Action Required: Manual approval needed to apply changes
+            
+            This could be:
+            - First deployment (creating new infrastructure)
+            - Manual infrastructure changes outside Terraform
+            - Configuration drift from desired state
+            - Terraform code changes
+            
+            View the full plan and approve the deployment:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Send Drift Detection Email - No Changes
+        if: steps.drift_check.outputs.has_drift == 'false'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "DRIFT CHECK: No Infrastructure Changes - All Aligned"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: DevOps Stage 6 CI/CD
+          body: |
+            NO INFRASTRUCTURE DRIFT DETECTED
+            
+            Terraform drift detection completed successfully. Your infrastructure matches the desired state.
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
+            Workflow: Infrastructure Deployment with Drift Detection
+            
+            Status: NO CHANGES NEEDED
+            Result: Infrastructure is aligned with Terraform configuration
+            
+            This means:
+            - No manual changes were made outside Terraform
+            - Infrastructure matches your desired state exactly
+            - No drift correction needed
+            
+            Workflow will proceed without applying changes.
+            View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  wait-for-approval:
+    name: Wait for Manual Approval
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    environment: production
+    
+    steps:
+    - name: Manual approval checkpoint
+      run: |
+        if [ "${{ needs.terraform-plan.outputs.has_drift }}" == "true" ]; then
+          echo "Changes approved - Deploying infrastructure updates"
+        else
+          echo "No changes detected - Deployment approved to proceed"
+        fi
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: [terraform-plan, wait-for-approval]
+    if: always() && needs.terraform-plan.result == 'success' && needs.wait-for-approval.result == 'success'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Setup SSH key for Ansible
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: infra/terraform
+        env:
+          TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME || 'destinyobs.mooo.com' }}
+          TF_VAR_owner_email: ${{ secrets.NOTIFICATION_EMAIL }}
+          TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_private_key_path: ~/.ssh/id_rsa
+        run: terraform apply -auto-approve
+
+      - name: Send Deployment Success Email
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "✅ Terraform Deployment Successful"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: DevOps Stage 6 CI/CD
+          body: |
+            Infrastructure deployment completed successfully!
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            
+            Application URL: https://destinyobs.mooo.com
+
+      - name: Send Deployment Failure Email
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "❌ Terraform Deployment Failed"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: DevOps Stage 6 CI/CD
+          body: |
+            Infrastructure deployment failed!
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            
+            Please check the logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+```
+
+**Key Workflow Features:**
+
+1. **Drift Detection Logic:**
+   ```bash
+   terraform plan -out=tfplan -detailed-exitcode
+   EXIT_CODE=$?
+   # Exit 0 = No changes, Exit 2 = Changes detected
+   ```
+
+2. **Conditional Email Notifications:**
+   - Different emails for drift vs no-drift scenarios
+   - Full context with repository, branch, commit details
+
+3. **Manual Approval Gate:**
+   - `environment: production` requires GitHub environment setup
+   - Workflow pauses until reviewer approves
+
+4. **Ansible Integration:**
+   - SSH key setup in GitHub Actions runner
+   - Ansible installed before Terraform apply
+   - Terraform provisioner module triggers Ansible automatically
 
 ---
 
 ### 2. Application Deployment Workflow
 
-**File:** `app-deploy.yml`  
-**Name:** Application Deployment
+**File:** `.github/workflows/app-deploy.yml`
 
-**Triggers:**
-- Push to main branch (paths: service folders, docker-compose.yml)
-- Manual workflow_dispatch
+#### Complete Workflow Code:
 
-**Purpose:** Deploy application changes WITHOUT modifying infrastructure
+```yaml
+name: Application Deployment
 
-**Job: deploy**
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - 'auth-api/**'
+      - 'todos-api/**'
+      - 'users-api/**'
+      - 'log-message-processor/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/app-deploy.yml'
+  workflow_dispatch:
 
-**Steps:**
-1. Checkout code
-2. Configure AWS credentials
-3. Setup Terraform (wrapper disabled for raw output)
-4. Terraform init
-5. **Get server IP from Terraform output:**
-   - Command: `terraform output -raw instance_public_ip`
-   - Stores in GitHub output variable
-6. Setup SSH key and known_hosts
-7. Install Ansible
-8. **Create Ansible inventory dynamically:**
-   - Uses server IP from Terraform
-   - Sets ansible_user to ubuntu
-   - Configures deploy_user and domain
-   - App repo: GitHub repository URL
-9. **Run Ansible playbook:**
-   - Command: `ansible-playbook -i inventory/hosts.yml playbook.yml`
-   - Runs both dependencies and deploy roles
-10. **Verify deployment:**
-    - Wait 30 seconds
-    - Curl application URL
-    - Fail if not accessible
-11. **Send deployment notification:**
-    - Always runs (success or failure)
-    - Includes server IP and application URL
+jobs:
+  deploy:
+    name: Deploy Application via Ansible
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-**Key Feature:** No Terraform apply - only reads existing state
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Get Server IP from Terraform
+        id: terraform
+        working-directory: infra/terraform
+        run: |
+          SERVER_IP=$(terraform output -raw instance_public_ip)
+          echo "server_ip=$SERVER_IP" >> $GITHUB_OUTPUT
+          echo "Server IP: $SERVER_IP"
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ steps.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Create Ansible inventory
+        run: |
+          mkdir -p infra/ansible/inventory
+          cat > infra/ansible/inventory/hosts.yml <<EOF
+          all:
+            hosts:
+              app_server:
+                ansible_host: ${{ steps.terraform.outputs.server_ip }}
+                ansible_user: ubuntu
+                ansible_ssh_private_key_file: ~/.ssh/id_rsa
+                ansible_python_interpreter: /usr/bin/python3
+                deploy_user: deploy
+                domain_name: ${{ secrets.DOMAIN_NAME || 'destinyobs.mooo.com' }}
+                app_repo: https://github.com/${{ github.repository }}.git
+                app_directory: /home/deploy/DevOps-Stage-6
+            vars:
+              ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+          EOF
+
+      - name: Run Ansible Deployment
+        working-directory: infra/ansible
+        run: |
+          ansible-playbook -i inventory/hosts.yml playbook.yml
+
+      - name: Verify Deployment
+        run: |
+          sleep 30
+          curl -f https://${{ secrets.DOMAIN_NAME || 'destinyobs.mooo.com' }} || exit 1
+
+      - name: Send Deployment Notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Application Deployment ${{ job.status }}"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: DevOps Stage 6 CI/CD
+          body: |
+            Application deployment ${{ job.status }}!
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
+            
+            Server IP: ${{ steps.terraform.outputs.server_ip }}
+            Application URL: https://${{ secrets.DOMAIN_NAME || 'destinyobs.mooo.com' }}
+            
+            ${{ job.status == 'success' && 'All services are running successfully.' || 'Deployment failed. Please check the logs.' }}
+```
+
+**Key Workflow Features:**
+
+1. **Terraform State Reader (No Apply):**
+   ```bash
+   terraform_wrapper: false  # Get raw output
+   SERVER_IP=$(terraform output -raw instance_public_ip)
+   ```
+   - Reads existing state only
+   - No infrastructure changes
+
+2. **Dynamic Inventory Generation:**
+   ```bash
+   cat > infra/ansible/inventory/hosts.yml <<EOF
+   all:
+     hosts:
+       app_server:
+         ansible_host: ${{ steps.terraform.outputs.server_ip }}
+   EOF
+   ```
+   - Creates inventory on-the-fly
+   - Uses live server IP from state
+
+3. **Deployment Verification:**
+   ```bash
+   sleep 30
+   curl -f https://destinyobs.mooo.com || exit 1
+   ```
+   - Waits for services to start
+   - Fails if app unreachable
 
 ---
 
 ### 3. Infrastructure Destroy Workflow
 
-**File:** `infra-destroy.yml`  
-**Name:** Infrastructure Destroy
+**File:** `.github/workflows/infra-destroy.yml`
+
+#### Complete Workflow Code:
+
+```yaml
+name: Infrastructure Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: 'Type "DESTROY" to confirm infrastructure destruction'
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.6.0
+
+jobs:
+  validate-destroy-request:
+    name: Validate Destroy Request
+    runs-on: ubuntu-latest
+    outputs:
+      should_destroy: ${{ steps.check.outputs.should_destroy }}
+    
+    steps:
+      - name: Check confirmation
+        id: check
+        run: |
+          if [ "${{ github.event.inputs.confirm_destroy }}" == "DESTROY" ]; then
+            echo "should_destroy=true" >> $GITHUB_OUTPUT
+            echo "✅ Destroy confirmed"
+          else
+            echo "should_destroy=false" >> $GITHUB_OUTPUT
+            echo "❌ Destroy cancelled - confirmation text did not match"
+            exit 1
+          fi
+
+  terraform-destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    needs: validate-destroy-request
+    if: needs.validate-destroy-request.outputs.should_destroy == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Show Destroy Plan
+        working-directory: infra/terraform
+        env:
+          TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME }}
+          TF_VAR_owner_email: ${{ secrets.NOTIFICATION_EMAIL }}
+          TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_private_key_path: ~/.ssh/id_rsa
+        run: |
+          echo "WARNING: The following resources will be DESTROYED:"
+          terraform plan -destroy -no-color
+
+      - name: Wait for final confirmation
+        run: |
+          echo "=== FINAL WARNING ==="
+          echo "This will DESTROY all infrastructure resources!"
+          echo "Proceeding in 10 seconds..."
+          sleep 10
+
+      - name: Terraform Destroy
+        working-directory: infra/terraform
+        env:
+          TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME }}
+          TF_VAR_owner_email: ${{ secrets.NOTIFICATION_EMAIL }}
+          TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_private_key_path: ~/.ssh/id_rsa
+        run: terraform destroy -auto-approve
+
+      - name: Send Destruction Notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Infrastructure Destruction ${{ job.status }}"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: DevOps Stage 6 CI/CD
+          body: |
+            Infrastructure destruction ${{ job.status }}!
+            
+            Repository: ${{ github.repository }}
+            Triggered by: ${{ github.actor }}
+            Timestamp: ${{ github.event.repository.updated_at }}
+            
+            ${{ job.status == 'success' && 'All infrastructure resources have been destroyed.' || 'Destruction failed. Some resources may still exist. Please check AWS Console.' }}
+            
+            Note: Check your AWS Console to verify all resources are removed.
+```
+
+**Key Workflow Features:**
+
+1. **Manual Trigger with Confirmation:**
+   ```yaml
+   inputs:
+     confirm_destroy:
+       description: 'Type "DESTROY" to confirm'
+       required: true
+   ```
+
+2. **Validation Job:**
+   ```bash
+   if [ "${{ github.event.inputs.confirm_destroy }}" == "DESTROY" ]; then
+     echo "should_destroy=true"
+   else
+     exit 1  # Fail if not exact match
+   fi
+   ```
+
+3. **Destroy Plan Preview:**
+   ```bash
+   terraform plan -destroy -no-color
+   ```
+   - Shows what will be destroyed
+   - Logged for audit trail
+
+4. **10-Second Final Warning:**
+   ```bash
+   echo "Proceeding in 10 seconds..."
+   sleep 10
+   ```
+
+---
+
+### 4. Infrastructure Plan Only Workflow
+
+**File:** `.github/workflows/infra-plan-only.yml`
+
+#### Complete Workflow Code:
+
+```yaml
+name: Infrastructure Plan Only (Dry Run)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infra/terraform/**'
+      - 'infra/ansible/**'
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.6.0
+
+jobs:
+  terraform-plan-dry-run:
+    name: Terraform Plan (No Apply)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: infra/terraform
+        run: terraform validate
+
+      - name: Terraform Format Check
+        working-directory: infra/terraform
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: infra/terraform
+        env:
+          TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME || 'destinyobs.mooo.com' }}
+          TF_VAR_owner_email: ${{ secrets.NOTIFICATION_EMAIL }}
+          TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_private_key_path: ~/.ssh/id_rsa
+        run: |
+          set +e
+          terraform plan -out=tfplan -detailed-exitcode -no-color | tee plan_output.txt
+          EXIT_CODE=$?
+          set -e
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          
+          if [ "$EXIT_CODE" == "0" ]; then
+            echo "No changes needed"
+          elif [ "$EXIT_CODE" == "2" ]; then
+            echo "Changes detected"
+          else
+            echo "Plan failed"
+            exit 1
+          fi
+
+      - name: Analyze Plan
+        working-directory: infra/terraform
+        run: |
+          echo "## Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.plan.outputs.exit_code }}" == "0" ]; then
+            echo "**No changes needed** - Infrastructure matches desired state" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.plan.outputs.exit_code }}" == "2" ]; then
+            echo "**Changes detected** - See plan output below" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`terraform" >> $GITHUB_STEP_SUMMARY
+            tail -n 50 plan_output.txt >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload plan output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-output
+          path: infra/terraform/plan_output.txt
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('infra/terraform/plan_output.txt', 'utf8');
+            const exitCode = '${{ steps.plan.outputs.exit_code }}';
+            
+            let comment = '## 🏗️ Terraform Plan Results\n\n';
+            
+            if (exitCode === '0') {
+              comment += '**No changes needed** - Infrastructure matches desired state\n';
+            } else if (exitCode === '2') {
+              comment += '**Changes detected** - Review the plan below:\n\n';
+              comment += '<details><summary>View Plan Output</summary>\n\n```terraform\n';
+              comment += planOutput.slice(0, 60000);
+              comment += '\n```\n</details>\n';
+            } else {
+              comment += '**Plan failed** - Check the workflow logs\n';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Send Plan Notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Terraform Plan Dry Run - ${{ steps.plan.outputs.exit_code == '0' && 'No Changes' || steps.plan.outputs.exit_code == '2' && 'Changes Detected' || 'Failed' }}"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: DevOps Stage 6 CI/CD
+          body: |
+            Terraform Plan (Dry Run) completed!
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Triggered by: ${{ github.actor }}
+            
+            Result: ${{ steps.plan.outputs.exit_code == '0' && 'No changes needed' || steps.plan.outputs.exit_code == '2' && 'Changes detected' || 'Plan failed' }}
+            
+            ${{ steps.plan.outputs.exit_code == '0' && 'Infrastructure matches the desired state.' || steps.plan.outputs.exit_code == '2' && 'Infrastructure changes detected. Review the plan in the workflow output.' || 'Plan execution failed. Check the logs.' }}
+            
+            View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+```
+
+**Key Workflow Features:**
+
+1. **PR Trigger:**
+   ```yaml
+   pull_request:
+     branches: [main]
+     paths: ['infra/terraform/**', 'infra/ansible/**']
+   ```
+   - Runs on PRs to preview changes
+
+2. **Format Check:**
+   ```bash
+   terraform fmt -check -recursive
+   continue-on-error: true
+   ```
+   - Checks code formatting
+   - Doesn't block workflow
+
+3. **GitHub Step Summary:**
+   ```bash
+   echo "## Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
+   tail -n 50 plan_output.txt >> $GITHUB_STEP_SUMMARY
+   ```
+   - Creates summary in GitHub UI
+
+4. **PR Comment:**
+   ```javascript
+   github.rest.issues.createComment({
+     issue_number: context.issue.number,
+     body: comment
+   });
+   ```
+   - Posts plan results as PR comment
+   - Collapsible for large outputs
+
+---
+
+### Workflow Comparison Summary:
+
+| Workflow | Trigger | Runs Terraform Apply? | Use Case |
+|----------|---------|----------------------|----------|
+| **infra-deploy.yml** | Push to main (infra files) | ✅ Yes (with approval) | Production deployment |
+| **app-deploy.yml** | Push to main (app files) | ❌ No (reads state only) | Application updates |
+| **infra-destroy.yml** | Manual with "DESTROY" | ✅ Yes (destroy mode) | Teardown |
+| **infra-plan-only.yml** | PR or manual | ❌ No (plan only) | Preview changes |
+
+---
+
+### GitHub Secrets Configuration:
+
+**Required Secrets (Settings → Secrets and variables → Actions):****Name:** Infrastructure Destroy
 
 **Trigger:** Manual workflow_dispatch only (with confirmation input)
 
