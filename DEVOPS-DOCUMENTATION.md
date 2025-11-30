@@ -3142,97 +3142,14 @@ jobs:
 
 ### GitHub Secrets Configuration:
 
-**Required Secrets (Settings → Secrets and variables → Actions):****Name:** Infrastructure Destroy
-
-**Trigger:** Manual workflow_dispatch only (with confirmation input)
-
-**Input Required:**
-- Type "DESTROY" to confirm (case-sensitive)
-
-**Jobs:**
-
-#### Job 1: validate-destroy-request
-**Steps:**
-1. Check confirmation text
-2. Fail if not exactly "DESTROY"
-3. Set output: should_destroy
-
-#### Job 2: terraform-destroy
-**Conditions:** Runs only if validation passed
-
-**Steps:**
-1. Checkout code
-2. Configure AWS credentials
-3. Setup Terraform
-4. Terraform init
-5. **Show destroy plan:** `terraform plan -destroy`
-6. **Wait 10 seconds** (final warning)
-7. **Terraform destroy -auto-approve**
-8. **Send destruction notification:**
-   - Success: All resources destroyed
-   - Failure: Some resources may still exist
-
-**Safety Features:**
-- Requires manual workflow trigger
-- Requires typing "DESTROY"
-- Shows destroy plan before execution
-- 10-second final warning
-- Email notification of result
-
----
-
-### 4. Infrastructure Plan Only Workflow
-
-**File:** `infra-plan-only.yml`  
-**Name:** Infrastructure Plan Only (Dry Run)
-
-**Triggers:**
-- Manual workflow_dispatch
-- Pull requests to main (paths: infra/**)
-
-**Purpose:** Preview changes without applying them
-
-**Job: terraform-plan-dry-run**
-
-**Steps:**
-1. Checkout code
-2. Configure AWS credentials
-3. Setup Terraform
-4. Terraform init
-5. Terraform validate
-6. **Terraform format check** (continue on error)
-7. **Terraform plan** (no apply):
-   - Saves plan to file
-   - Captures exit code
-   - No apply executed
-8. **Analyze plan:**
-   - Add summary to GitHub step summary
-   - Show last 50 lines of plan
-9. Upload plan output artifact
-10. **Comment on PR** (if triggered by PR):
-    - Shows plan results in PR comment
-    - Collapses large outputs
-11. **Send plan notification email:**
-    - Subject indicates: No Changes / Changes Detected / Failed
-
-**Use Cases:**
-- Preview infrastructure changes before merge
-- Verify Terraform syntax
-- Check for unintended changes
-- Review before manual deployment
-
----
-
-##  Security & Secrets Management
-
-### GitHub Secrets Required
+**Required Secrets (Settings → Secrets and variables → Actions):**
 
 **AWS Credentials:**
 - `AWS_ACCESS_KEY_ID` - AWS access key for Terraform
 - `AWS_SECRET_ACCESS_KEY` - AWS secret key for Terraform
 
 **SSH Access:**
-- `SSH_PRIVATE_KEY` - Private SSH key for server access
+- `SSH_PRIVATE_KEY` - Private SSH key for server access (PEM format)
 - `SSH_PUBLIC_KEY` - Public SSH key for EC2 key pair
 
 **Application Configuration:**
@@ -3242,6 +3159,51 @@ jobs:
 **Email Notifications:**
 - `SMTP_USERNAME` - Gmail address for sending emails
 - `SMTP_PASSWORD` - Gmail app password (not regular password)
+
+### Workflow Usage Examples:
+
+**Deploying Infrastructure:**
+```bash
+# Push infrastructure changes to main branch
+git add infra/terraform/*
+git commit -m "Update infrastructure"
+git push origin main
+# Workflow triggers automatically → Plan → Wait for approval → Apply
+```
+
+**Deploying Application:**
+```bash
+# Push application changes to main branch
+git add frontend/ auth-api/ todos-api/
+git commit -m "Update services"
+git push origin main
+# Workflow triggers automatically → Deploys via Ansible
+```
+
+**Preview Changes:**
+```bash
+# Create PR with infrastructure changes
+git checkout -b feature/new-security-group
+git add infra/terraform/modules/networking/main.tf
+git commit -m "Add new security group"
+git push origin feature/new-security-group
+# Create PR → Plan-only workflow runs → Comment shows plan
+```
+
+**Destroy Infrastructure:**
+```bash
+# Go to Actions → Infrastructure Destroy → Run workflow
+# Input: Type "DESTROY" (case-sensitive)
+# Workflow shows plan → Waits 10 seconds → Destroys
+```
+
+---
+
+## 🔐 Security & Secrets Management
+
+### GitHub Secrets Configuration
+
+All secrets are stored in GitHub repository settings under **Settings → Secrets and variables → Actions**.
 
 ### Security Features Implemented
 
