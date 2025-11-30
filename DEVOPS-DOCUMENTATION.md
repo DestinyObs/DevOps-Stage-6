@@ -1742,7 +1742,7 @@ exit 1
 
 ---
 
-## 🔧 Configuration Management (Ansible)
+##  Configuration Management (Ansible)
 
 **Purpose:** Automates instance provisioning and application deployment
 
@@ -2330,7 +2330,7 @@ ansible-playbook playbook.yml
 
 ---
 
-## 🔄 CI/CD Pipelines (GitHub Actions)
+##  CI/CD Pipelines (GitHub Actions)
 
 ### Workflow Structure
 ```
@@ -2549,7 +2549,7 @@ ansible-playbook playbook.yml
 
 ---
 
-## 🔐 Security & Secrets Management
+##  Security & Secrets Management
 
 ### GitHub Secrets Required
 
@@ -2597,7 +2597,7 @@ ansible-playbook playbook.yml
 
 ---
 
-## 🎯 Key DevOps Features
+##  Key DevOps Features
 
 ### 1. Infrastructure as Code (IaC)
 - **100% automated provisioning** with Terraform
@@ -2643,7 +2643,7 @@ ansible-playbook playbook.yml
 
 ---
 
-## 🚀 Deployment Flow
+##  Deployment Flow
 
 ### Initial Deployment
 
@@ -2848,7 +2848,7 @@ ssh -i ~/.ssh/id_rsa ubuntu@<server-ip>
 
 ---
 
-## 🎯 Success Metrics
+##  Success Metrics
 
 This project demonstrates:
 
