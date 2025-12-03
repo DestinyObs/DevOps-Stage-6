@@ -109,18 +109,13 @@ services:
     image: redis:7-alpine
     networks:
       - appnet
-    healthcheck:  # Add health check
+    volumes:
+      - redis-data:/data
+    healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
-      redis:
-        volumes:
-          - redis-data:/data
-      volumes:
-        - redis-data:/data
-volumes:
-  redis-data:
 
   traefik:
     image: traefik:3.6.2
@@ -146,3 +141,6 @@ volumes:
 networks:
   appnet:
     driver: bridge
+
+volumes:
+  redis-data:
