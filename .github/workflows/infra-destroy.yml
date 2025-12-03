@@ -25,10 +25,10 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.confirm_destroy }}" == "DESTROY" ]; then
             echo "should_destroy=true" >> $GITHUB_OUTPUT
-            echo "✅ Destroy confirmed"
+            echo "Destroy confirmed"
           else
             echo "should_destroy=false" >> $GITHUB_OUTPUT
-            echo "❌ Destroy cancelled - confirmation text did not match"
+            echo "Destroy cancelled - confirmation text did not match"
             exit 1
           fi
 

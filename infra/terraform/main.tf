@@ -1,39 +1,21 @@
-# ============================================================================
-# Root Terraform Configuration - DevOps Stage 6 Infrastructure
-# ============================================================================
-# This is the main entry point for infrastructure provisioning.
-# It orchestrates three modules:
-#   1. Networking  - VPC, subnets, security groups
-#   2. Compute     - EC2 instance, SSH keys, Elastic IP
-#   3. Provisioner - Ansible inventory generation and execution
-#
-# Usage:
-#   terraform init             # Initialize modules and providers
-#   terraform plan             # Preview changes
-#   terraform apply            # Apply changes and deploy
-#   terraform destroy          # Tear down infrastructure
-# ============================================================================
+# Root infrastructure configuration
+# Modules: networking, compute, provisioner
 
-# ----------------------------------------------------------------------------
-# Terraform and Provider Requirements
-# ----------------------------------------------------------------------------
+# Provider requirements
 terraform {
-  required_version = ">= 1.0"                    # Minimum Terraform version
+  required_version = ">= 1.0"
 
   required_providers {
-    # AWS Provider - For cloud infrastructure
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"                         # AWS provider v5.x
+      version = "~> 5.0"
     }
 
-    # Local Provider - For generating local files (Ansible inventory)
     local = {
       source  = "hashicorp/local"
       version = "~> 2.4"
     }
 
-    # Null Provider - For running provisioners and scripts
     null = {
       source  = "hashicorp/null"
       version = "~> 3.2"
@@ -41,90 +23,55 @@ terraform {
   }
 }
 
-# ----------------------------------------------------------------------------
-# Local Variables - Common Tags
-# ----------------------------------------------------------------------------
-# Tags applied to all AWS resources for:
-# - Cost tracking and allocation
-# - Resource organization
-# - Drift detection
-# - Compliance and governance
+# Common tags for all resources
 locals {
   common_tags = {
-    Project     = var.project_name               # Project identifier
-    Environment = var.environment                # Environment (dev/staging/prod)
-    ManagedBy   = "Terraform"                    # Infrastructure as Code tool
-    DriftCheck  = "enabled"                      # Enable drift detection
-    Owner       = var.owner_email                # Owner for notifications
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+    DriftCheck  = "enabled"
+    Owner       = var.owner_email
   }
 }
 
-# ----------------------------------------------------------------------------
-# Module: Networking
-# ----------------------------------------------------------------------------
-# Creates network infrastructure:
-# - VPC with DNS support
-# - Internet Gateway
-# - Public subnet
-# - Route table with internet access
-# - Security group with firewall rules (SSH, HTTP, HTTPS, Traefik)
+# Networking module
 module "networking" {
   source = "./modules/networking"
 
-  # Pass variables to networking module
   project_name       = var.project_name
-  vpc_cidr           = var.vpc_cidr              # VPC IP range (e.g., 10.0.0.0/16)
-  public_subnet_cidr = var.public_subnet_cidr    # Subnet IP range (e.g., 10.0.1.0/24)
-  availability_zone  = var.availability_zone     # AZ for resource placement
-  ssh_allowed_ips    = var.ssh_allowed_ips       # IPs allowed to SSH
-  common_tags        = local.common_tags         # Apply common tags
+  vpc_cidr           = var.vpc_cidr
+  public_subnet_cidr = var.public_subnet_cidr
+  availability_zone  = var.availability_zone
+  ssh_allowed_ips    = var.ssh_allowed_ips
+  common_tags        = local.common_tags
 }
 
-# ----------------------------------------------------------------------------
-# Module: Compute
-# ----------------------------------------------------------------------------
-# Provisions compute resources:
-# - EC2 instance with Ubuntu 22.04 LTS
-# - SSH key pair for access
-# - Elastic IP for static public IP
-# - User data script to prepare for Ansible
-# - Encrypted root volume
+# Compute module
 module "compute" {
   source = "./modules/compute"
 
-  # Pass variables to compute module
   project_name      = var.project_name
-  instance_type     = var.instance_type          # EC2 instance size (t2.medium)
-  subnet_id         = module.networking.public_subnet_id     # From networking module
-  security_group_id = module.networking.security_group_id    # From networking module
-  ssh_public_key    = var.ssh_public_key         # SSH public key content
-  deploy_user       = var.deploy_user            # Deployment user name
-  root_volume_size  = var.root_volume_size       # Root volume size in GB
-  common_tags       = local.common_tags          # Apply common tags
+  instance_type     = var.instance_type
+  subnet_id         = module.networking.public_subnet_id
+  security_group_id = module.networking.security_group_id
+  ssh_public_key    = var.ssh_public_key
+  deploy_user       = var.deploy_user
+  root_volume_size  = var.root_volume_size
+  common_tags       = local.common_tags
 
-  # Wait for networking to be ready before creating compute resources
   depends_on = [module.networking]
 }
 
-# ----------------------------------------------------------------------------
-# Module: Provisioner
-# ----------------------------------------------------------------------------
-# Handles configuration management:
-# - Generates Ansible inventory from Terraform outputs
-# - Waits for SSH connectivity
-# - Runs Ansible playbook automatically
-# - Ensures idempotent deployment
+# Provisioner module - Ansible integration
 module "provisioner" {
   source = "./modules/provisioner"
 
-  # Pass variables to provisioner module
-  instance_id          = module.compute.instance_id          # From compute module
-  instance_public_ip   = module.compute.instance_public_ip   # From compute module
-  ssh_user             = var.ssh_user                        # Initial SSH user (ubuntu)
-  ssh_private_key_path = var.ssh_private_key_path            # Path to SSH private key
-  deploy_user          = var.deploy_user                     # Application deployment user
-  domain_name          = var.domain_name                     # Application domain
+  instance_id          = module.compute.instance_id
+  instance_public_ip   = module.compute.instance_public_ip
+  ssh_user             = var.ssh_user
+  ssh_private_key_path = var.ssh_private_key_path
+  deploy_user          = var.deploy_user
+  domain_name          = var.domain_name
 
-  # Wait for compute resources to be ready before provisioning
   depends_on = [module.compute]
 }

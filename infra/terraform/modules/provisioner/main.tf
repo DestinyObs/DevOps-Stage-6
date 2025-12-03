@@ -1,10 +1,4 @@
-# ============================================================================
-# Provisioner Module - Ansible Trigger and Inventory Generation
-# ============================================================================
-
-# ----------------------------------------------------------------------------
-# Generate Dynamic Ansible Inventory File
-# ----------------------------------------------------------------------------
+# Generate Ansible inventory
 resource "local_file" "ansible_inventory" {
   content = templatefile("${path.root}/templates/inventory.tpl", {
     server_ip       = var.instance_public_ip
@@ -18,9 +12,7 @@ resource "local_file" "ansible_inventory" {
   file_permission = "0644"
 }
 
-# ----------------------------------------------------------------------------
-# Wait for SSH Connectivity
-# ----------------------------------------------------------------------------
+# Wait for SSH
 resource "null_resource" "wait_for_ssh" {
   depends_on = [local_file.ansible_inventory]
 
@@ -33,9 +25,7 @@ resource "null_resource" "wait_for_ssh" {
   }
 }
 
-# ----------------------------------------------------------------------------
-# Run Ansible Playbook
-# ----------------------------------------------------------------------------
+# Run Ansible
 resource "null_resource" "run_ansible" {
   depends_on = [null_resource.wait_for_ssh]
 

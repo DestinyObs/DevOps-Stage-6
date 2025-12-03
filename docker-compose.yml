@@ -114,6 +114,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+      redis:
+        volumes:
+          - redis-data:/data
+      volumes:
+        - redis-data:/data
+volumes:
+  redis-data:
 
   traefik:
     image: traefik:3.6.2

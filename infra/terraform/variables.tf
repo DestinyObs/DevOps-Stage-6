@@ -1,6 +1,3 @@
-# Terraform Variables
-
-# Project Configuration
 variable "project_name" {
   description = "Name of the project"
   type        = string
@@ -18,7 +15,6 @@ variable "owner_email" {
   type        = string
 }
 
-# AWS Configuration
 variable "aws_region" {
   description = "AWS region"
   type        = string
@@ -31,7 +27,6 @@ variable "availability_zone" {
   default     = "us-east-1a"
 }
 
-# Networking Configuration
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
@@ -45,12 +40,11 @@ variable "public_subnet_cidr" {
 }
 
 variable "ssh_allowed_ips" {
-  description = "List of IP addresses allowed to SSH (restrict to your IP)"
+  description = "List of IP addresses allowed to SSH"
   type        = list(string)
-  default     = ["0.0.0.0/0"] # Change this to your IP for security
+  default     = ["0.0.0.0/0"]
 }
 
-# Compute Configuration
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
@@ -63,7 +57,6 @@ variable "root_volume_size" {
   default     = 30
 }
 
-# SSH Configuration
 variable "ssh_public_key" {
   description = "SSH public key content for EC2 access"
   type        = string
@@ -86,7 +79,6 @@ variable "deploy_user" {
   default     = "deploy"
 }
 
-# Application Configuration
 variable "domain_name" {
   description = "Domain name for the application"
   type        = string
